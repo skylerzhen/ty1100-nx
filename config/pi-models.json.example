@@ -1,0 +1,22 @@
+{
+  "providers": {
+    "llama-local": {
+      "baseUrl": "http://127.0.0.1:8081/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+          "name": "Qwen3.6-35B Local",
+          "reasoning": false,
+          "contextWindow": 130000,
+          "maxTokens": 4096
+        }
+      ]
+    }
+  }
+}

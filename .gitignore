@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Secrets & local config
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs & temp
+*.log
+logs/
+tmp/
+.cache/
+
+# Pi sessions (device-local)
+.pi/sessions/
+
+# npm debug
+npm-debug.log*
