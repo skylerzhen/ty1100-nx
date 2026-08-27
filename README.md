@@ -124,6 +124,51 @@ curl -s http://127.0.0.1:8081/v1/chat/completions \
 
 Internal project — 仅供团队内部使用。
 
+## 多设备同步（Cursor / 其他电脑）
+
+仓库托管在 GitHub，任意电脑用 **同一 GitHub 账号** 拉取即可同步。
+
+### 首次在新电脑上获取项目
+
+```powershell
+# 1. 克隆（需已登录 GitHub：gh auth login）
+git clone https://github.com/skylerzhen/ty1100-nx.git
+cd ty1100-nx
+
+# 2. 用 Cursor 打开文件夹
+# File → Open Folder → 选择 ty1100-nx 目录
+```
+
+或在 Cursor 中：**Clone Repo** → 粘贴 `https://github.com/skylerzhen/ty1100-nx.git`
+
+### 日常同步
+
+**在当前电脑改完并上传：**
+
+```powershell
+cd ty1100-nx
+git add -A
+git commit -m "更新说明"
+git push
+# 若 push 失败（代理问题）：
+git -c http.proxy= -c https.proxy= push
+```
+
+**在另一台电脑拉最新：**
+
+```powershell
+cd ty1100-nx
+git pull
+```
+
+Cursor 内置 Source Control 面板也可直接 Pull / Push / Sync。
+
+### 注意
+
+- 仓库为 **Private**，需 GitHub 账号 `skylerzhen` 有访问权限
+- 设备 SSH 密码、API Key 等 **不要提交到 Git**（已在 `.gitignore` 排除 `.env`）
+- 边端设备上的 `~/ty1100-agent` 需单独用 `scp` 同步，不经过 GitHub
+
 ## 作者
 
 skylerz
