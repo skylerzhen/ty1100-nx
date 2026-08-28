@@ -2,6 +2,19 @@
 
 本仓库遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 格式。
 
+## [0.2.0] - 2026-08-28
+
+### Added
+
+- 政务/企业防数据泄露规则库（R-DLP / R-GOV / R-ENT 等 9 类规则）
+- 部署场景知识库、合规检查 Skill
+- setup 脚本改为目录同步，便于扩展行业规则包
+
+### Changed
+
+- AGENTS.md 重构为私有化合规 Agent
+- 设备 IP：`192.168.34.9`
+
 ## [0.1.0] - 2026-08-27
 
 ### Added
