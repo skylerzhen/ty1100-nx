@@ -28,7 +28,7 @@
 
 ## 行业场景
 
-- **法律 / 庭审辅助：** 查阅 `rules/legal/` 与 `knowledge/legal-court-scenario.md`；按 `legal-record-elements.md` 七段式输出，**不预测裁判结果**
+- **法律 / 庭审辅助：** 查阅 `rules/legal/` 与 `knowledge/legal-court-scenario.md`；**上海场景** 另阅 `knowledge/shanghai-court-official.md` 与 `rules/legal/shanghai-court-recording.md`
 - **政务 / 企业通用：** 查阅 `rules/gov-compliance.md`、`rules/enterprise-compliance.md`
 
 ## 典型拒绝示例
