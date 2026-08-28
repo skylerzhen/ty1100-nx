@@ -9,8 +9,10 @@
 | [legal-record-elements.md](./legal-record-elements.md) | 必须提炼的庭审要素 |
 | [legal-party-privacy.md](./legal-party-privacy.md) | 当事人信息与隐私 |
 | [legal-forbidden.md](./legal-forbidden.md) | 法律场景禁止行为 |
-| [shanghai-court-recording.md](./shanghai-court-recording.md) | **上海市 · 庭审记录改革对齐（示例）** |
+| [shanghai-court-recording.md](./shanghai-court-recording.md) | 上海市 · 庭审记录改革对齐 |
+| **[statutes/](./statutes/README.md)** | **法律法规原文规则（法释〔2017〕5号等）** |
+| [statutes-enforcement.md](./statutes-enforcement.md) | 法律法规执行总纲 |
 
-**法规依据（摘要）：** 《最高人民法院关于人民法院庭审录音录像的若干规定》；上海全市法院庭审记录改革试点（2020 年起，见 `knowledge/shanghai-court-official.md`）。
+**法规依据：** 核心法律规则见 **`statutes/fabiao-2017-5-recording.md`**（19条全文）；上海见 **`statutes/shanghai-hshfy-pilot-2020.md`**。
 
 **与通用规则关系：** 本包与 `data-leakage-prevention.md`、`gov-compliance.md` 同时生效；冲突时 **就高不就低**。
