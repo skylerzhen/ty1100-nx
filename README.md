@@ -103,6 +103,7 @@ curl -s http://127.0.0.1:8081/v1/chat/completions \
 
 | 文档 | 说明 |
 |------|------|
+| [docs/项目阶段性说明.md](./docs/项目阶段性说明.md) | **阶段性成果说明（可转发同事）** |
 | [docs/TY1100-NX_Pi_Agent.md](./docs/TY1100-NX_Pi_Agent.md) | Pi Agent 部署完整文档 |
 | [docs/TY1100-NX_性能测试.md](./docs/TY1100-NX_性能测试.md) | 性能测试报告 |
 | [docs/TY1100-NX项目指南.md](./docs/TY1100-NX项目指南.md) | 项目总览与连接指南 |
