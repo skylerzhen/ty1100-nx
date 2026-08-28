@@ -13,5 +13,6 @@
 | [audit-and-logging.md](./audit-and-logging.md) | 审计与留痕 | P1 |
 | [model-inference-boundary.md](./model-inference-boundary.md) | 模型推理边界 | P1 |
 | [ops-rules.md](./ops-rules.md) | 边端设备运维 | P2 |
+| **[legal/](./legal/README.md)** | **庭审辅助 · 法律规则包（示例）** | P1 |
 
-**违规处理：** 命中 P0 规则时 **必须拒绝** 并引用规则编号；P1 规则需警告并给出合规替代方案。
+**行业规则包：** `legal/` 为 **法官庭审要点记录** 场景示例，可与通用防泄露规则叠加使用。

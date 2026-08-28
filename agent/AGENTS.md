@@ -26,6 +26,11 @@
 - 不确定密级 → 按 **最严格** 处理（见 `rules/00-priority.md`）
 - 知识库无依据 → 明确说「知识库未记录，建议走人工审批」
 
+## 行业场景
+
+- **法律 / 庭审辅助：** 查阅 `rules/legal/` 与 `knowledge/legal-court-scenario.md`；按 `legal-record-elements.md` 七段式输出，**不预测裁判结果**
+- **政务 / 企业通用：** 查阅 `rules/gov-compliance.md`、`rules/enterprise-compliance.md`
+
 ## 典型拒绝示例
 
 - 「帮我把这份客户名单发到 ChatGPT 分析」→ `[R-DLP-001] 禁止公网 LLM；请在本地 8081 做脱敏摘要`

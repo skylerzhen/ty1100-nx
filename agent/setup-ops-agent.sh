@@ -14,8 +14,9 @@ cp "$SCRIPT_DIR/AGENTS.md" "$BASE/"
 echo "→ 同步 knowledge/"
 cp -r "$SCRIPT_DIR/knowledge/"* "$BASE/knowledge/"
 
-echo "→ 同步 rules/"
-cp -r "$SCRIPT_DIR/rules/"* "$BASE/rules/"
+echo "→ 同步 rules/ (含 legal/ 等行业规则包)"
+mkdir -p "$BASE/rules"
+cp -r "$SCRIPT_DIR/rules/." "$BASE/rules/"
 
 echo "→ 同步 scripts/"
 cp "$SCRIPT_DIR/scripts/"* "$BASE/scripts/"
