@@ -6,7 +6,8 @@
 
 ### Added
 
-- 阶段性成果说明文档 `docs/项目阶段性说明.md`
+- 庭审 Agent + Web 开发规格书 `docs/TY1100-NX_庭审Agent开发规格书.md`
+- 庭审 Web 交互界面 `agent/web/`（Flask :8090）
 - 政务/企业防数据泄露规则库（R-DLP / R-GOV / R-ENT 等 9 类规则）
 - 部署场景知识库、合规检查 Skill
 - setup 脚本改为目录同步，便于扩展行业规则包

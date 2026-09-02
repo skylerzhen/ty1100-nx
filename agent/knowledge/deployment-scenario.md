@@ -10,6 +10,19 @@
 
 TY1100-NX + 本地 Qwen + Pi Agent + **规则库** 即为此场景设计：**算力与数据均在可控域内**。
 
+## 当前主场景：法院 · 上海庭审要点笔记
+
+| 模块 | 路径 |
+|------|------|
+| 知识库 | `knowledge/court/`、`knowledge/shanghai-court-official.md` |
+| 规则库 | `rules/legal/`（含 `statutes/` 法律法规原文） |
+| Demo | `knowledge/samples/court-demo-*.md` |
+| Skill | `.agents/skills/court-summary/` |
+
+**演示话术：**
+
+> 我们在法院边端部署本地大模型，Agent 按 **法律法规 + 庭审规则** 辅助制作 **要点式庭审笔记**；数据不出内网，不替代正式笔录与智慧庭审系统。
+
 ## 典型客户
 
 | 类型 | 诉求 |

@@ -1,0 +1,15 @@
+{
+  "users": {
+    "judge": {
+      "role": "judge",
+      "salt": "change-me-in-production",
+      "password_hash": "REPLACE_WITH_sha256_salt_password"
+    },
+    "clerk": {
+      "role": "clerk",
+      "salt": "change-me-in-production",
+      "password_hash": "REPLACE_WITH_sha256_salt_password"
+    }
+  },
+  "_comment": "Generate hash: python -c \"import hashlib; s='your-salt'; print(hashlib.sha256(f'{s}:your-password'.encode()).hexdigest())\""
+}

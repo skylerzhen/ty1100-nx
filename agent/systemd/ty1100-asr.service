@@ -1,0 +1,18 @@
+[Unit]
+Description=TY1100 Local ASR (sherpa-onnx Paraformer-zh, 8091)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cix
+WorkingDirectory=%h/ty1100-agent/asr
+Environment=TY1100_ASR_DEVICE=cpu
+Environment=TY1100_ASR_HOST=0.0.0.0
+Environment=TY1100_ASR_MODEL_DIR=%h/ty1100-agent/asr/models/sherpa-onnx-paraformer-zh-2023-09-14
+ExecStart=%h/ty1100-agent/asr/.venv/bin/python asr_server.py --host 0.0.0.0 --port 8091
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

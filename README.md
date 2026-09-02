@@ -12,6 +12,7 @@
 | 35B 推理性能（~30 tokens/s） | ✅ 完成 |
 | Pi + 本地模型对接 | ✅ 完成 |
 | 知识库 / 规则库 Agent | ✅ 骨架完成 |
+| 庭审 Web 交互界面 | ✅ 8090 端口 |
 | 运维一键巡检 | ⏳ 待联调 |
 
 **版本：** v0.1.0 · 详见 [CHANGELOG.md](./CHANGELOG.md)
@@ -25,6 +26,7 @@ ty1100-nx/
 │   ├── knowledge/          # 知识库
 │   ├── rules/              # 规则库
 │   ├── scripts/            # 运维脚本（inspect.sh）
+│   ├── web/                # 庭审 Web 交互界面（8090）
 │   ├── .agents/skills/     # Pi Skills
 │   └── setup-ops-agent.sh  # 设备端一键安装
 ├── config/
@@ -35,38 +37,37 @@ ty1100-nx/
 
 ## 快速开始
 
-### 1. 连接设备
+### 部署 Agent + 庭审 Web（标准方式）
+
+在本机 PowerShell，**一条命令**，无需进入设备终端：
 
 ```powershell
-ssh cix@<设备IP>
+cd C:\Users\five0\Desktop\ty1100-nx
+.\scripts\deploy-from-windows.ps1
 ```
 
-默认内网 IP：`192.168.34.10`（已配置静态 IP）
+浏览器：`http://192.168.34.11:8090/`（Ctrl+F5 刷新）
 
-### 2. 安装 Pi Agent 项目
+仅重启 Web：`.\scripts\restart-web-remote.ps1`  
+本机开发调试：`.\scripts\dev-local-web.ps1` → `http://127.0.0.1:8090/`
 
-在 **Windows** 上传安装脚本：
+设备 IP：`192.168.34.11`，SSH 用户 `cix`（密码 `cix`，`scp`/`ssh` 各可能提示一次）。
+
+### 可选：SSH 登录设备（排查用）
 
 ```powershell
-scp agent/setup-ops-agent.sh cix@192.168.34.10:~/
+ssh cix@192.168.34.11
 ```
 
-在 **设备** 执行：
-
-```bash
-bash ~/setup-ops-agent.sh
-```
-
-### 3. 配置 Pi 本地模型
+### 配置 Pi 本地模型（设备上，一般已配好）
 
 ```bash
 mkdir -p ~/.pi/agent
 cp ~/ty1100-agent/../config/pi-models.json.example ~/.pi/agent/models.json
-# 或从本仓库 config/pi-models.json.example 复制内容
 sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 ```
 
-### 4. 运行 Agent
+### 运行 Agent CLI
 
 ```bash
 cd ~/ty1100-agent
@@ -76,7 +77,7 @@ PI_OFFLINE=1 pi --provider llama-local \
   -p "TY1100 的推理 API 端口是多少？"
 ```
 
-### 5. 一键巡检
+### 一键巡检
 
 ```bash
 sudo -v
@@ -104,7 +105,9 @@ curl -s http://127.0.0.1:8081/v1/chat/completions \
 | 文档 | 说明 |
 |------|------|
 | [docs/项目阶段性说明.md](./docs/项目阶段性说明.md) | **阶段性成果说明（可转发同事）** |
-| [docs/TY1100-NX_Pi_Agent.md](./docs/TY1100-NX_Pi_Agent.md) | Pi Agent 部署完整文档 |
+| [docs/TY1100-NX_庭审Agent开发规格书.md](./docs/TY1100-NX_庭审Agent开发规格书.md) | **庭审 Agent + Web 开发规格书** |
+| [docs/TY1100-NX_庭审Web界面.md](./docs/TY1100-NX_庭审Web界面.md) | Web 部署说明 |
+| [scripts/deploy-from-windows.ps1](./scripts/deploy-from-windows.ps1) | **本机一键部署（无需进设备终端）** |
 | [docs/TY1100-NX_性能测试.md](./docs/TY1100-NX_性能测试.md) | 性能测试报告 |
 | [docs/TY1100-NX项目指南.md](./docs/TY1100-NX项目指南.md) | 项目总览与连接指南 |
 
@@ -119,7 +122,7 @@ curl -s http://127.0.0.1:8081/v1/chat/completions \
 
 - Agent 底座：**Pi**（pi-mono / pi-coding-agent），非 OpenClaw
 - 设备端项目路径：`~/ty1100-agent`
-- 修改 `agent/` 后重新 `scp setup-ops-agent.sh` 或在设备上 `bash setup-ops-agent.sh`
+- 修改 `agent/` 后在本机执行：`.\scripts\deploy-from-windows.ps1`（不要手动 scp + 设备 bash）
 
 ## License
 

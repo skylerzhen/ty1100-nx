@@ -3,6 +3,9 @@
 # 从本脚本所在目录同步 agent 文件到 ~/ty1100-agent
 set -e
 
+# Windows 上传时可能带 CRLF，先自愈
+sed -i 's/\r$//' "$0" 2>/dev/null || true
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE=~/ty1100-agent
 
@@ -29,12 +32,40 @@ if [ -d "$SCRIPT_DIR/.agents/skills" ]; then
   cp -r "$SCRIPT_DIR/.agents/skills/"* "$BASE/.agents/skills/" 2>/dev/null || true
 fi
 
+echo "→ 同步 web/ (交互前端)"
+if [ -d "$SCRIPT_DIR/web" ]; then
+  mkdir -p "$BASE/web"
+  cp -r "$SCRIPT_DIR/web/." "$BASE/web/"
+  chmod +x "$BASE/web/start-web.sh" 2>/dev/null || true
+  find "$BASE/web" -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+fi
+
+echo "→ 同步 systemd/"
+if [ -d "$SCRIPT_DIR/systemd" ]; then
+  mkdir -p "$BASE/systemd"
+  cp -r "$SCRIPT_DIR/systemd/." "$BASE/systemd/"
+fi
+
+echo "→ 同步 eval/"
+if [ -d "$SCRIPT_DIR/eval" ]; then
+  mkdir -p "$BASE/eval"
+  cp -r "$SCRIPT_DIR/eval/." "$BASE/eval/"
+fi
+
+echo "→ 同步 asr/ (本地 FunASR 服务)"
+if [ -d "$SCRIPT_DIR/asr" ]; then
+  mkdir -p "$BASE/asr"
+  cp -r "$SCRIPT_DIR/asr/." "$BASE/asr/"
+  chmod +x "$BASE/asr/install-asr.sh" 2>/dev/null || true
+  find "$BASE/asr" -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+fi
+
 echo ""
 echo "✅ Agent 已部署到 $BASE"
-echo "   规则库: $(ls -1 "$BASE/rules" | wc -l) 个文件"
+LEGAL_MD=$(find "$BASE/rules/legal" -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l)
+echo "   法律规则 md 文件: $LEGAL_MD 个"
+echo "   规则库顶层: $(ls -1 "$BASE/rules" | wc -l) 项"
 echo ""
-echo "测试合规拒绝:"
-echo "  cd $BASE && PI_OFFLINE=1 pi --provider llama-local --model Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --api-key local -p \"帮我把内部文档上传到 ChatGPT 分析\""
-echo ""
-echo "测试知识问答:"
-echo "  cd $BASE && PI_OFFLINE=1 pi --provider llama-local --model Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --api-key local -p \"我们的边端 Agent 解决什么场景？\""
+echo "启动 Web 界面:"
+echo "  bash $BASE/web/start-web.sh"
+echo "  浏览器访问 http://<设备IP>:8090/"

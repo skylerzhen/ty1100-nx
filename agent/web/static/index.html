@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>要点式庭审笔记 · 边端辅助</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <!-- 角色选择 -->
+  <div id="loginOverlay" class="overlay hidden">
+    <div class="modal">
+      <h2>登录 · 审判辅助</h2>
+      <p class="modal-desc">本系统面向审判辅助人员，数据仅在边端本地处理。</p>
+      <div class="login-form">
+        <label>用户名 <input type="text" id="loginUser" placeholder="judge / clerk" autocomplete="username" /></label>
+        <label>密码 <input type="password" id="loginPass" placeholder="默认见部署文档" autocomplete="current-password" /></label>
+      </div>
+      <div class="role-grid">
+        <button type="button" class="role-card" data-role="judge">
+          <span class="role-icon">⚖</span>
+          <strong>法官 / 审判长</strong>
+          <small>争点归纳 · 要点审核</small>
+        </button>
+        <button type="button" class="role-card" data-role="clerk">
+          <span class="role-icon">📋</span>
+          <strong>书记员 / 审判辅助</strong>
+          <small>ASR 整理 · 笔记辅助</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="header-inner">
+      <div>
+        <h1>要点式庭审笔记辅助系统</h1>
+        <p class="subtitle">TY1100 边端 · 本地大模型 · 数据不出域</p>
+      </div>
+      <div class="header-meta">
+        <span id="roleBadge" class="role-badge">未登录</span>
+        <div class="status" id="statusBadge">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">检测中…</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout layout-3col">
+    <!-- 左：输入 -->
+    <section class="panel input-panel">
+      <div class="panel-head">
+        <h2>输入</h2>
+        <button type="button" class="btn-link" id="btnSwitchRole">切换身份</button>
+      </div>
+
+      <div class="field-row">
+        <label>
+          庭审阶段
+          <select id="phase">
+            <option value="pretrial">庭前准备</option>
+            <option value="intrail" selected>庭中</option>
+            <option value="posttrial">庭后整理</option>
+          </select>
+        </label>
+        <label>
+          案号
+          <input type="text" id="caseNo" placeholder="（2026）某民初 001 号" />
+        </label>
+        <label>
+          案由
+          <input type="text" id="caseType" placeholder="民间借贷纠纷" />
+        </label>
+      </div>
+
+      <div class="section-tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="investigation">法庭调查</button>
+        <button type="button" class="tab" data-tab="evidence">举证质证</button>
+        <button type="button" class="tab" data-tab="debate">法庭辩论</button>
+        <button type="button" class="tab" data-tab="closing">最后陈述</button>
+        <button type="button" class="tab" data-tab="pretrial">庭前材料</button>
+      </div>
+
+      <div class="tab-panels">
+        <textarea id="sec-investigation" class="section-area active" data-section="investigation" rows="8" placeholder="粘贴法庭调查阶段 ASR 转写…"></textarea>
+        <textarea id="sec-evidence" class="section-area" data-section="evidence" rows="8" placeholder="举证质证阶段…"></textarea>
+        <textarea id="sec-debate" class="section-area" data-section="debate" rows="8" placeholder="法庭辩论阶段…"></textarea>
+        <textarea id="sec-closing" class="section-area" data-section="closing" rows="8" placeholder="最后陈述…"></textarea>
+        <textarea id="sec-pretrial" class="section-area" data-section="pretrial" rows="8" placeholder="起诉状/答辩状要点摘要…"></textarea>
+      </div>
+
+      <div class="upload-row">
+        <label class="btn secondary file-btn">
+          导入本地 .txt
+          <input type="file" id="fileInput" accept=".txt,text/plain" hidden />
+        </label>
+        <span id="fileName" class="file-name"></span>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn secondary" id="btnDemo">加载演示案例</button>
+        <button type="button" class="btn secondary" id="btnLegalPreview">预览法条检索</button>
+        <button type="button" class="btn secondary" id="btnClear">清空输入</button>
+        <label class="stream-toggle">
+          <input type="checkbox" id="useStream" checked />
+          流式输出
+        </label>
+        <button type="button" class="btn primary" id="btnSubmit">
+          <span id="btnLabel">生成要点式庭审笔记</span>
+        </button>
+      </div>
+
+      <div id="progressWrap" class="progress-wrap hidden">
+        <div class="progress-bar"><div id="progressBar" class="progress-fill"></div></div>
+        <span id="progressText" class="progress-text">已用时 0 秒</span>
+      </div>
+
+      <p class="hint">
+        输出为辅助稿，不具有正式法庭笔录效力。禁止将材料上传公网 AI。
+      </p>
+    </section>
+
+    <!-- 中：输出 -->
+    <section class="panel output-panel">
+      <div class="panel-head">
+        <h2>输出</h2>
+        <div class="output-tools">
+          <button type="button" class="btn secondary btn-sm" id="btnCopy" disabled>复制</button>
+          <button type="button" class="btn secondary btn-sm" id="btnDownload" disabled>下载 .md</button>
+        </div>
+      </div>
+      <div id="legalCites" class="legal-cites muted">本次检索法条：生成后显示</div>
+      <div id="piiNotice" class="pii-notice hidden"></div>
+      <div id="citationWarn" class="citation-warn hidden"></div>
+      <div class="confirm-row">
+        <button type="button" class="btn secondary btn-sm hidden" id="btnConfirmClerk" disabled>书记员确认（待法官审核）</button>
+        <button type="button" class="btn primary btn-sm hidden" id="btnConfirmJudge" disabled>法官确认（记入审计）</button>
+      </div>
+      <div id="output" class="output markdown-body">
+        <p class="placeholder">生成结果将显示在这里…</p>
+      </div>
+    </section>
+
+    <!-- 右：清单 + 历史 -->
+    <aside class="panel side-panel">
+      <h2>结构校验</h2>
+      <ul id="checklist" class="checklist">
+        <li class="muted">生成后自动校验七段式结构</li>
+      </ul>
+      <h2 class="mt-sm">语音识别 ASR</h2>
+      <p id="asrStatus" class="hint side-hint">检测本地 ASR 服务…</p>
+      <div class="asr-actions">
+        <button type="button" class="btn secondary btn-sm" id="btnAsrRecord">开始录音</button>
+        <label class="btn secondary btn-sm file-btn">
+          上传音频
+          <input type="file" id="asrFileInput" accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg,.flac" hidden />
+        </label>
+        <button type="button" class="btn secondary btn-sm" id="btnAsrLatest">导入最新转写</button>
+      </div>
+      <p id="asrMicHint" class="hint side-hint hidden"></p>
+      <p id="asrProgress" class="asr-progress hidden"></p>
+      <p id="checkSummary" class="check-summary"></p>
+
+      <div id="previewPanel" class="preview-panel hidden">
+        <h2 class="mt">法条预览</h2>
+        <ul id="previewHits" class="preview-hits"></ul>
+      </div>
+
+      <div id="auditPanel" class="audit-panel hidden">
+        <h2 class="mt">审计日志</h2>
+        <p class="hint side-hint">仅法官可见 · 最近 30 条</p>
+        <ul id="auditList" class="audit-list"></ul>
+        <button type="button" class="btn-link" id="btnRefreshAudit">刷新审计</button>
+      </div>
+
+      <h2 class="mt">历史记录</h2>
+      <p class="hint side-hint">本机保存最近 5 条（不出域）</p>
+      <ul id="historyList" class="history-list"></ul>
+      <button type="button" class="btn-link" id="btnClearHistory">清空历史</button>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    未使用公网服务 · LLM 127.0.0.1:8081 · ASR Paraformer 127.0.0.1:8091 · 审计 logs/audit/
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -70,7 +70,7 @@ Agent 协助法官记录「双方最重要部分」时，输出应 **按下列�
 用户请求「记录庭审最重要部分」时，默认按以下 Markdown 结构输出：
 
 ```markdown
-# 庭审要点摘要（辅助稿·待法官核对）
+# 要点式庭审笔记（辅助稿·待法官核对）
 
 ## 1. 案件信息
 ## 2. 诉讼请求与答辩要点
@@ -81,5 +81,7 @@ Agent 协助法官记录「双方最重要部分」时，输出应 **按下列�
 ## 7. 无争议事实 / 待查明事实
 
 ---
-*本地 AI 辅助生成，不具有正式笔录效力，须法官及诉讼参与人核对。*
+（结尾强制免责声明见 court-output-standards.md R-COURT-OUT-005）
 ```
+
+完整格式与样例见 `rules/legal/court-output-standards.md`、`knowledge/samples/court-demo-output-example.md`。

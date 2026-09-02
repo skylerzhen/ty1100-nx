@@ -1,0 +1,14 @@
+{
+  "users": {
+    "judge": {
+      "role": "judge",
+      "salt": "ty1100-local",
+      "password_hash": "f00a7474c076fe66984fe4e564010cdbf36a709c04b26e323855e24313c4fab8"
+    },
+    "clerk": {
+      "role": "clerk",
+      "salt": "ty1100-local",
+      "password_hash": "acc5d85cfb471bc45bbd5cbd0e6954bc1cb316f281f5547d27a964468af144d2"
+    }
+  }
+}

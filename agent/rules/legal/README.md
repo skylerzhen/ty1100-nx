@@ -7,6 +7,8 @@
 | [legal-ai-boundary.md](./legal-ai-boundary.md) | AI 司法辅助边界（P0） |
 | [legal-court-recording.md](./legal-court-recording.md) | 庭审记录与录音录像规范 |
 | [legal-record-elements.md](./legal-record-elements.md) | 必须提炼的庭审要素 |
+| [court-workflow-rules.md](./court-workflow-rules.md) | **庭前/庭中/庭后分阶段规则** |
+| [court-output-standards.md](./court-output-standards.md) | **输出标题、七段式、免责声明** |
 | [legal-party-privacy.md](./legal-party-privacy.md) | 当事人信息与隐私 |
 | [legal-forbidden.md](./legal-forbidden.md) | 法律场景禁止行为 |
 | [shanghai-court-recording.md](./shanghai-court-recording.md) | 上海市 · 庭审记录改革对齐 |

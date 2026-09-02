@@ -1,0 +1,20 @@
+[Unit]
+Description=TY1100 Court Trial Web (8090)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cix
+WorkingDirectory=%h/ty1100-agent/web
+Environment=TY1100_AGENT_BASE=%h/ty1100-agent
+Environment=TY1100_WEB_HOST=0.0.0.0
+Environment=TY1100_WEB_PORT=8090
+Environment=TY1100_ASR_URL=http://127.0.0.1:8091
+ExecStartPre=%h/ty1100-agent/scripts/gen-web-tls.sh
+ExecStart=%h/ty1100-agent/web/.venv/bin/python server.py --host 0.0.0.0 --port 8090 --ssl-cert %h/ty1100-agent/web/certs/cert.pem --ssl-key %h/ty1100-agent/web/certs/key.pem
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

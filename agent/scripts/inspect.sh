@@ -41,8 +41,12 @@ echo "=== 磁盘 (/) ==="
 df -h /
 echo ""
 
-echo "=== 监听端口 (8081/18789) ==="
-ss -tlnp 2>/dev/null | grep -E '8081|18789' || sudo ss -tlnp 2>/dev/null | grep -E '8081|18789' || echo "无相关端口监听"
+echo "=== 8090 庭审 Web ==="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:8090/api/health 2>/dev/null || echo "8090 不可达"
+echo ""
+
+echo "=== 监听端口 (8081/8090/18789) ==="
+ss -tlnp 2>/dev/null | grep -E '8081|8090|18789' || sudo ss -tlnp 2>/dev/null | grep -E '8081|8090|18789' || echo "无相关端口监听"
 echo ""
 
 echo "=== 巡检完成 ==="

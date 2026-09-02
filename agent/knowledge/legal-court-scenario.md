@@ -1,5 +1,8 @@
 # 庭审辅助场景知识库
 
+> **总入口：** [court/README.md](./court/README.md)  
+> **工作流：** [court/workflow.md](./court/workflow.md) · **角色：** [court/roles.md](./court/roles.md) · **输入：** [court/input-guide.md](./court/input-guide.md)
+
 ## 场景定义
 
 **用户：** 法官 / 审判辅助人员  
@@ -48,6 +51,7 @@ Agent：按 legal-record-elements 输出结构化摘要
 
 ## 扩展
 
-- 按 **案由** 扩展要素模板（刑事、行政、知识产权）
+- 按 **案由** 扩展要素模板（刑事、行政、知识产权）→ 见 `court/glossary.md`
 - 对接 **内网 Case 系统** 仅读起诉状/答辩状
-- 与 **ASR 庭审语音** 流水线集成
+- 与 **ASR 庭审语音** 流水线集成 → 见 `court/input-guide.md`
+- 输出格式黄金样例 → `samples/court-demo-output-example.md`
