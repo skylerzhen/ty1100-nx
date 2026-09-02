@@ -21,6 +21,7 @@ from streaming_engine import (
     get_streaming_recognizer,
     streaming_model_ready,
     warmup_streaming,
+    _streaming_recognizer,
     _streaming_paths,
     _streaming_error,
 )
