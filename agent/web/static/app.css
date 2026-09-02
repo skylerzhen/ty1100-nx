@@ -400,5 +400,19 @@ input:focus, select:focus, textarea:focus {
 .asr-actions .file-btn { text-align: center; justify-content: center; }
 .asr-progress { font-size: 0.75rem; color: var(--primary); margin: 0.35rem 0; }
 .asr-progress.err { color: var(--danger); }
+.asr-live {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f8fafc;
+  max-height: 8rem;
+  overflow-y: auto;
+}
+.asr-live-label { font-size: 0.7rem; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+.asr-live-text { font-size: 0.8rem; line-height: 1.45; margin: 0; white-space: pre-wrap; word-break: break-word; }
+.asr-live-text.live { color: var(--text); }
+.btn.recording { background: var(--danger); color: #fff; border-color: var(--danger); animation: pulse-rec 1.2s ease-in-out infinite; }
+@keyframes pulse-rec { 50% { opacity: 0.85; } }
 .btn.recording { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
 .mt-sm { margin-top: 0.75rem; }

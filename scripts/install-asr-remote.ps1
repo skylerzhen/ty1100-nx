@@ -23,14 +23,24 @@ Write-Host ""
 Write-Host "[2/3] Sync code + pip + warmup ..." -ForegroundColor Cyan
 scp -r "$AgentSrc\asr" "${User}@${DeviceIp}:~/agent/"
 scp "$AgentSrc\scripts\restart-asr-service.sh" "${User}@${DeviceIp}:~/agent/scripts/"
-ssh "${User}@${DeviceIp}" "find ~/agent -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null; bash ~/agent/setup-ops-agent.sh; TY1100_SKIP_MODEL_DOWNLOAD=1 bash ~/agent/asr/install-asr.sh"
+ssh "${User}@${DeviceIp}" "find ~/agent -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null; bash ~/agent/setup-ops-agent.sh; TY1100_SKIP_MODEL_DOWNLOAD=1 TY1100_SKIP_STREAMING_DOWNLOAD=1 bash ~/agent/asr/install-asr.sh"
+
+Write-Host ""
+Write-Host "[2b] Streaming model (live mic, ~70MB) ..." -ForegroundColor Cyan
+if ($SkipModelUpload) {
+    & "$PSScriptRoot\upload-asr-streaming-model.ps1" -DeviceIp $DeviceIp -User $User
+} else {
+    Write-Host "  also uploading streaming model ..." -ForegroundColor Gray
+    & "$PSScriptRoot\upload-asr-streaming-model.ps1" -DeviceIp $DeviceIp -User $User
+}
 
 Write-Host ""
 Write-Host "[3/3] Start ASR :8091 ..." -ForegroundColor Cyan
 ssh "${User}@${DeviceIp}" "bash ~/ty1100-agent/scripts/restart-asr-service.sh"
 
 Write-Host ""
-$health = Invoke-RestMethod -Uri "http://${DeviceIp}:8090/api/health" -TimeoutSec 15
+$result = & "$PSScriptRoot\get-web-health.ps1" -DeviceIp $DeviceIp
+$health = $result.Health
 if ($health.asr_ok) {
     Write-Host "SUCCESS: ASR online ($($health.asr_engine))" -ForegroundColor Green
 } else {

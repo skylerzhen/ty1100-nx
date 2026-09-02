@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
-"""Local ASR service — sherpa-onnx Paraformer-zh (CPU, offline Chinese). Port 8091."""
+"""Local ASR service — offline Paraformer + streaming Zipformer. Port 8091."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import tempfile
+import wave
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import numpy as np
+from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+
+from streaming_engine import (
+    STREAMING_ENGINE,
+    StreamingSession,
+    get_streaming_recognizer,
+    streaming_model_ready,
+    warmup_streaming,
+    _streaming_paths,
+    _streaming_error,
+)
 
 ASR_HOST = os.environ.get("TY1100_ASR_HOST", "0.0.0.0")
 ASR_PORT = int(os.environ.get("TY1100_ASR_PORT", "8091"))
@@ -106,11 +119,20 @@ def ffmpeg_to_wav16k(src: Path, dst: Path) -> None:
         raise RuntimeError(err)
 
 
-def transcribe_wav(wav_path: Path) -> str:
-    import sherpa_onnx
+def read_wave(wav_path: Path) -> tuple[np.ndarray, int]:
+    """Load mono 16-bit PCM wav as float32 samples in [-1, 1] (sherpa-onnx examples)."""
+    with wave.open(str(wav_path), "rb") as f:
+        if f.getnchannels() != 1:
+            raise RuntimeError(f"expected mono wav, got {f.getnchannels()} channels")
+        if f.getsampwidth() != 2:
+            raise RuntimeError(f"expected 16-bit wav, got {f.getsampwidth()} bytes/sample")
+        samples = np.frombuffer(f.readframes(f.getnframes()), dtype=np.int16)
+        return samples.astype(np.float32) / 32768.0, f.getframerate()
 
+
+def transcribe_wav(wav_path: Path) -> str:
     recognizer = get_recognizer()
-    samples, sample_rate = sherpa_onnx.read_wave(str(wav_path))
+    samples, sample_rate = read_wave(wav_path)
     if sample_rate != 16000:
         raise RuntimeError(f"expected 16kHz wav, got {sample_rate}")
     stream = recognizer.create_stream()
@@ -119,16 +141,25 @@ def transcribe_wav(wav_path: Path) -> str:
     return (stream.result.text or "").strip()
 
 
+def offline_model_ready() -> bool:
+    try:
+        resolve_model_paths()
+        return True
+    except FileNotFoundError:
+        return False
+
+
 @app.get("/health")
 def health():
-    ok = _recognizer is not None
-    err = _model_error
-    if not ok and not err:
-        try:
-            get_recognizer()
-            ok = True
-        except Exception as e:
-            err = str(e)
+    # Do not load models here — only report file/cache state (avoids OOM on edge device).
+    ok = _recognizer is not None or offline_model_ready()
+    err = _model_error if not ok else None
+    if not ok and _model_error:
+        err = _model_error
+
+    stream_ok = _streaming_recognizer is not None or streaming_model_ready()
+    stream_err = _streaming_error if not stream_ok else None
+
     return {
         "status": "ok" if ok else "error",
         "engine": ENGINE_NAME,
@@ -136,7 +167,45 @@ def health():
         "ready": ok,
         "error": err,
         "model": _model_paths,
+        "streaming_ready": stream_ok,
+        "streaming_engine": STREAMING_ENGINE if stream_ok else None,
+        "streaming_error": stream_err,
+        "streaming_model": _streaming_paths if _streaming_recognizer else {},
     }
+
+
+@app.websocket("/ws/stream")
+async def ws_stream(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        session = StreamingSession()
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
+        await websocket.close(code=1011)
+        return
+
+    await websocket.send_json({"type": "ready", "engine": STREAMING_ENGINE})
+    try:
+        while True:
+            msg = await websocket.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
+            if "bytes" in msg and msg["bytes"]:
+                result = session.feed_pcm16(msg["bytes"])
+                await websocket.send_json({"type": "partial", "text": result["partial"]})
+            elif "text" in msg and msg["text"]:
+                data = json.loads(msg["text"])
+                if data.get("type") == "stop":
+                    text = session.finish()
+                    await websocket.send_json({"type": "final", "text": text})
+                    break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @app.post("/transcribe")
@@ -182,9 +251,14 @@ def main():
     parser.add_argument("--warmup", action="store_true")
     args = parser.parse_args()
     if args.warmup:
-        print("Loading sherpa-onnx Paraformer-zh…")
+        print("Loading offline Paraformer…")
         warmup()
-        print("ASR model ready:", _model_paths)
+        print("Offline model ready:", _model_paths)
+        if streaming_model_ready():
+            print("Loading streaming Zipformer…")
+            warmup_streaming()
+            print("Streaming model ready:", _streaming_paths)
+        return
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

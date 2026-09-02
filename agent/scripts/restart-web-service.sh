@@ -27,6 +27,11 @@ if ! grep -q 'stream_audit' "$WEB/server.py"; then
   exit 1
 fi
 
+if ! grep -q 'api/asr/ws' "$WEB/server.py"; then
+  echo "ERROR: server.py is old (no streaming WebSocket) — redeploy agent/web"
+  exit 1
+fi
+
 pkill -f 'ty1100-agent/web' 2>/dev/null || true
 pkill -f 'server.py --host' 2>/dev/null || true
 pkill -f 'server.py --port 8090' 2>/dev/null || true
@@ -38,6 +43,10 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
 fi
 .venv/bin/pip install -q -r requirements.txt 2>/dev/null || true
+if ! .venv/bin/python -c "import flask_sock" 2>/dev/null; then
+  echo "→ Installing flask-sock for streaming ASR WebSocket..."
+  .venv/bin/pip install -q -r requirements.txt
+fi
 
 export TY1100_AGENT_BASE="$BASE"
 export TY1100_ASR_URL="${TY1100_ASR_URL:-http://127.0.0.1:8091}"

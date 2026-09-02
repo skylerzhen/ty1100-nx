@@ -17,6 +17,7 @@ from typing import Generator
 from urllib.parse import urlparse
 
 from flask import Flask, Response, g, jsonify, request, send_from_directory, stream_with_context
+from flask_sock import Sock
 
 from asr_client import asr_base_url, check_asr_health, transcribe_file
 from asr_segment import segment_transcript
@@ -38,6 +39,7 @@ ASR_ALLOWED_SUFFIX = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".webm", 
 ASR_MAX_MB = int(os.environ.get("TY1100_ASR_MAX_MB", "200"))
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+sock = Sock(app)
 
 COMPLIANCE_RULES: list[tuple[str, str, str]] = [
     (r"chatgpt|openai|claude|通义|文心|公网\s*llm|境外", "R-DLP-001", "禁止将庭审内容上传公网 LLM；请在本机边端完成处理。"),
@@ -101,6 +103,15 @@ def _auth_guard():
     public = {"/api/health", "/api/auth/login"}
     if path in public:
         return None
+    if path.startswith("/api/asr/ws"):
+        if auth_disabled():
+            return None
+        token = request.args.get("token")
+        sess = validate_token(token)
+        if sess:
+            g.session = sess
+            return None
+        return jsonify({"error": "auth required"}), 401
     err = require_auth()
     return err
 
@@ -420,6 +431,9 @@ def health():
         "asr_ok": asr_ok,
         "asr_error": asr_error,
         "asr_engine": (asr_info or {}).get("engine"),
+        "asr_streaming_ready": bool((asr_info or {}).get("streaming_ready")),
+        "asr_streaming_engine": (asr_info or {}).get("streaming_engine"),
+        "asr_streaming_error": (asr_info or {}).get("streaming_error"),
         "asr_inbox_count": asr_count,
     })
 
@@ -618,6 +632,62 @@ def asr_ingest():
     )
     audit_event("asr_ingest", file=name, input_hash=hash_text(text), segments=list(sections.keys()))
     return jsonify({"ok": True, "file": name, "chars": len(text), "sections": sections})
+
+
+@sock.route("/api/asr/ws")
+def asr_ws_proxy(ws):
+    """Proxy browser WebSocket → local ASR streaming (:8091/ws/stream)."""
+    import threading
+
+    import websocket as ws_client
+
+    token = request.args.get("token")
+    if not auth_disabled() and not validate_token(token):
+        ws.send(json.dumps({"type": "error", "message": "未登录或会话已过期"}, ensure_ascii=False))
+        return
+
+    backend_url = asr_base_url().replace("https://", "ws://").replace("http://", "ws://") + "/ws/stream"
+    try:
+        backend = ws_client.create_connection(backend_url, timeout=15)
+    except Exception as e:
+        ws.send(json.dumps({"type": "error", "message": f"ASR 流式服务不可达: {e}"}, ensure_ascii=False))
+        return
+
+    closed = threading.Event()
+
+    def backend_to_client():
+        try:
+            while not closed.is_set():
+                data = backend.recv()
+                if data is None:
+                    break
+                if isinstance(data, bytes):
+                    ws.send(data)
+                else:
+                    ws.send(data)
+        except Exception:
+            pass
+        finally:
+            closed.set()
+
+    threading.Thread(target=backend_to_client, daemon=True).start()
+    try:
+        while not closed.is_set():
+            data = ws.receive()
+            if data is None:
+                break
+            if isinstance(data, str):
+                backend.send(data)
+            else:
+                backend.send(data, opcode=ws_client.ABNF.OPCODE_BINARY)
+    except Exception:
+        pass
+    finally:
+        closed.set()
+        try:
+            backend.close()
+        except Exception:
+            pass
 
 
 @app.get("/api/asr/status")

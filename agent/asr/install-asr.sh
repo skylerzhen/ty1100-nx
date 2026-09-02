@@ -119,7 +119,56 @@ if ! model_ready; then
 fi
 
 export TY1100_ASR_MODEL_DIR="$MODEL_ROOT"
-echo "→ Warmup ASR model"
+
+STREAM_MODEL="sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23"
+STREAM_TAR="${STREAM_MODEL}.tar.bz2"
+STREAM_ROOT="$BASE/models/${STREAM_MODEL}"
+STREAM_MIN=60000000
+STREAM_MAX=90000000
+
+streaming_model_ready() {
+  [ -f "$STREAM_ROOT/tokens.txt" ] || [ -n "$(find "$STREAM_ROOT" -name 'tokens.txt' 2>/dev/null | head -1)" ] && \
+  [ -n "$(find "$STREAM_ROOT" -name 'encoder*.onnx' 2>/dev/null | head -1)" ] && \
+  [ -n "$(find "$STREAM_ROOT" -name 'decoder*.onnx' 2>/dev/null | head -1)" ] && \
+  [ -n "$(find "$STREAM_ROOT" -name 'joiner*.onnx' 2>/dev/null | head -1)" ]
+}
+
+ensure_streaming_model() {
+  if streaming_model_ready; then
+    echo "→ Streaming model OK under $BASE/models"
+    return 0
+  fi
+  if [ "${TY1100_SKIP_STREAMING_DOWNLOAD:-0}" = "1" ]; then
+    echo "WARN: streaming model missing — mic will use batch mode until uploaded"
+    echo "  Windows: .\\scripts\\upload-asr-streaming-model.ps1"
+    return 0
+  fi
+  mkdir -p "$BASE/models"
+  TMP="$BASE/models/$STREAM_TAR"
+  URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${STREAM_TAR}"
+  echo "→ Download streaming Zipformer (~70MB) on device (slow)…"
+  echo "  Prefer: .\\scripts\\upload-asr-streaming-model.ps1 on Windows"
+  for mirror in \
+    "https://ghfast.top/${URL}" \
+    "https://mirror.ghproxy.com/${URL}" \
+    "${URL}"; do
+    echo "  try: $mirror"
+    if curl -L --connect-timeout 20 --max-time 7200 --progress-bar -o "$TMP" "$mirror"; then
+      SZ=$(stat -c%s "$TMP" 2>/dev/null || echo 0)
+      if [ "$SZ" -ge "$STREAM_MIN" ] && [ "$SZ" -le "$STREAM_MAX" ]; then
+        rm -rf "$STREAM_ROOT"
+        tar xjf "$TMP" -C "$BASE/models"
+        streaming_model_ready && return 0
+      fi
+    fi
+    rm -f "$TMP"
+  done
+  echo "WARN: streaming model download failed — upload from Windows"
+}
+
+ensure_streaming_model
+
+echo "→ Warmup ASR models"
 "$BASE/.venv/bin/python" "$BASE/asr_server.py" --warmup
 
 echo "✅ ASR installed at $BASE"

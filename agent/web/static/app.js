@@ -385,10 +385,16 @@ async function checkHealth() {
     const asrEl = $("asrStatus");
     if (asrEl) {
       if (data.asr_ok) {
-        asrEl.textContent = `ASR 就绪 · ${data.asr_engine || "Paraformer"} · 收件箱 ${data.asr_inbox_count || 0} 条`;
+        const mode = data.asr_streaming_ready ? "流式+离线" : "离线";
+        asrEl.textContent = `ASR 就绪 · ${mode} · 收件箱 ${data.asr_inbox_count || 0} 条`;
+        asrStreamingReady = !!data.asr_streaming_ready;
+        if (!data.asr_streaming_ready && data.asr_streaming_error) {
+          asrEl.textContent += ` · 流式未就绪`;
+        }
       } else {
         asrEl.textContent = `ASR 未就绪：${data.asr_error || "请安装并启动 8091 服务"}`;
         asrEl.classList.add("err");
+        asrStreamingReady = false;
       }
     }
     if (data.llm_ok && data.asr_ok) {
@@ -658,9 +664,231 @@ async function loadAsrLatest() {
   }
 }
 
-// --- Browser microphone → local ASR ---
+// --- Browser microphone → streaming / batch ASR ---
 let mediaRecorder = null;
 let recordChunks = [];
+let asrStreamingReady = false;
+let asrWs = null;
+let audioCtx = null;
+let micStream = null;
+let scriptNode = null;
+let streamingActive = false;
+
+function asrWsUrl() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const token = getToken();
+  let url = `${proto}//${location.host}/api/asr/ws`;
+  if (token) url += `?token=${encodeURIComponent(token)}`;
+  return url;
+}
+
+function resampleTo16k(float32, fromRate) {
+  if (fromRate === 16000) return float32;
+  const ratio = fromRate / 16000;
+  const outLen = Math.max(1, Math.floor(float32.length / ratio));
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const idx = i * ratio;
+    const i0 = Math.floor(idx);
+    const i1 = Math.min(i0 + 1, float32.length - 1);
+    const t = idx - i0;
+    out[i] = float32[i0] * (1 - t) + float32[i1] * t;
+  }
+  return out;
+}
+
+function floatToInt16(f32) {
+  const out = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) {
+    const s = Math.max(-1, Math.min(1, f32[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out;
+}
+
+function setLiveTranscript(text, active = true) {
+  const box = $("asrLiveBox");
+  const el = $("asrLiveText");
+  if (!box || !el) return;
+  box.classList.remove("hidden");
+  el.textContent = text || "（等待语音…）";
+  el.classList.toggle("live", active && !!text);
+  el.classList.toggle("muted", !text);
+}
+
+function cleanupStreamingAudio() {
+  streamingActive = false;
+  try { scriptNode?.disconnect(); } catch (_) {}
+  try { audioCtx?.close(); } catch (_) {}
+  micStream?.getTracks().forEach((t) => t.stop());
+  scriptNode = null;
+  audioCtx = null;
+  micStream = null;
+}
+
+async function saveStreamingTranscript(text) {
+  if (!text.trim()) return;
+  const res = await apiFetch("/api/asr/ingest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      case_no: $("caseNo").value || "",
+      source: "live-stream-asr",
+      auto_segment: true,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "保存转写失败");
+  applyAsrSections({ text, sections: data.sections, case_no: $("caseNo").value });
+  setAsrProgress(`流式转写完成 · ${text.length} 字`);
+  checkHealth();
+}
+
+async function startStreamingRecord() {
+  const btn = $("btnAsrRecord");
+  setLiveTranscript("", false);
+  setAsrProgress("连接流式 ASR…");
+
+  await new Promise((resolve, reject) => {
+    let opened = false;
+    const timer = setTimeout(() => reject(new Error("流式 ASR 连接超时（10s）")), 10000);
+    asrWs = new WebSocket(asrWsUrl());
+    asrWs.onopen = () => {
+      opened = true;
+      setAsrProgress("等待 ASR 就绪…");
+    };
+    asrWs.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("无法连接流式 ASR（请确认 Web 已部署 flask-sock 且 ASR 8091 在线）"));
+    };
+    asrWs.onclose = () => {
+      if (!opened) {
+        clearTimeout(timer);
+        reject(new Error("WebSocket 已关闭，请 Ctrl+F5 刷新后重试"));
+      }
+    };
+    asrWs.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === "ready") {
+        clearTimeout(timer);
+        resolve();
+        return;
+      }
+      if (msg.type === "partial") {
+        setLiveTranscript(msg.text || "", true);
+        setAsrProgress("实时转写中…");
+      } else if (msg.type === "final") {
+        setLiveTranscript(msg.text || "", false);
+        cleanupStreamingAudio();
+        btn.textContent = "开始录音";
+        btn.classList.remove("recording");
+        saveStreamingTranscript(msg.text || "").catch((e) => {
+          setAsrProgress(e.message, true);
+          alert(e.message);
+        });
+        asrWs = null;
+      } else if (msg.type === "error") {
+        clearTimeout(timer);
+        setAsrProgress(msg.message || "ASR 错误", true);
+        alert(msg.message || "ASR 错误");
+        reject(new Error(msg.message || "ASR 错误"));
+      }
+    };
+  });
+
+  micStream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+  });
+  audioCtx = new AudioContext();
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
+  const source = audioCtx.createMediaStreamSource(micStream);
+  scriptNode = audioCtx.createScriptProcessor(4096, 1, 1);
+  scriptNode.onaudioprocess = (ev) => {
+    if (!streamingActive || !asrWs || asrWs.readyState !== WebSocket.OPEN) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    const resampled = resampleTo16k(input, audioCtx.sampleRate);
+    const pcm = floatToInt16(resampled);
+    asrWs.send(pcm.buffer);
+  };
+  source.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  streamingActive = true;
+  btn.textContent = "停止录音";
+  btn.classList.add("recording");
+  setAsrProgress("实时转写中… 发言时右侧会滚动出字");
+}
+
+function stopStreamingRecord() {
+  streamingActive = false;
+  cleanupStreamingAudio();
+  if (asrWs && asrWs.readyState === WebSocket.OPEN) {
+    asrWs.send(JSON.stringify({ type: "stop" }));
+  }
+}
+
+async function startBatchRecord() {
+  const btn = $("btnAsrRecord");
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  recordChunks = [];
+  mediaRecorder = new MediaRecorder(stream, {
+    mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4",
+  });
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordChunks.push(e.data);
+  };
+  mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    const blob = new Blob(recordChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+    try {
+      await transcribeAudioBlob(blob, "court-recording.webm");
+    } catch (e) {
+      setAsrProgress(e.message, true);
+      alert(e.message);
+    }
+  };
+  mediaRecorder.start();
+  btn.textContent = "停止并转写";
+  btn.classList.add("recording");
+  setAsrProgress("录音中（离线模式）… 结束后一次性转写");
+}
+
+async function toggleAsrRecord() {
+  const btn = $("btnAsrRecord");
+  if (streamingActive || (mediaRecorder && mediaRecorder.state === "recording")) {
+    if (streamingActive) {
+      stopStreamingRecord();
+      btn.textContent = "开始录音";
+      btn.classList.remove("recording");
+    } else {
+      mediaRecorder.stop();
+      btn.textContent = "开始录音";
+      btn.classList.remove("recording");
+    }
+    return;
+  }
+  if (!canUseMicrophone()) {
+    alert(micBlockedReason());
+    return;
+  }
+  try {
+    if (asrStreamingReady) {
+      try {
+        await startStreamingRecord();
+      } catch (e) {
+        setAsrProgress(`流式失败: ${e.message}，改用离线录音…`, true);
+        await startBatchRecord();
+      }
+    } else {
+      await startBatchRecord();
+    }
+  } catch (e) {
+    alert(micBlockedReason() || "无法访问麦克风：" + e.message);
+  }
+}
 
 function canUseMicrophone() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -689,44 +917,6 @@ function initMicAvailability() {
   } else {
     btn.disabled = false;
     hint.classList.add("hidden");
-  }
-}
-
-async function toggleAsrRecord() {
-  const btn = $("btnAsrRecord");
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-    btn.textContent = "开始录音";
-    btn.classList.remove("recording");
-    return;
-  }
-  if (!canUseMicrophone()) {
-    alert(micBlockedReason());
-    return;
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recordChunks = [];
-    mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4" });
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordChunks.push(e.data);
-    };
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      const blob = new Blob(recordChunks, { type: mediaRecorder.mimeType || "audio/webm" });
-      try {
-        await transcribeAudioBlob(blob, "court-recording.webm");
-      } catch (e) {
-        setAsrProgress(e.message, true);
-        alert(e.message);
-      }
-    };
-    mediaRecorder.start();
-    btn.textContent = "停止并转写";
-    btn.classList.add("recording");
-    setAsrProgress("录音中… 庭中发言结束后点击「停止并转写」");
-  } catch (e) {
-    alert(micBlockedReason() || "无法访问麦克风：" + e.message);
   }
 }
 
